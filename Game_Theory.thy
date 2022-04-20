@@ -15,50 +15,60 @@ corollary players_have_a_move: "\<exists>s. s\<in>possible_strategies i"
 
 text "Strategy selection"
 (* TODO - Change the names to pure_profile etc. . *)
-definition strategy_maps :: "('player \<Rightarrow> 'strategy) set"
-  where "strategy_maps = {f. \<forall>i. f i \<in> possible_strategies i}"
+definition strategy_funs :: "('player \<Rightarrow> 'strategy) set"
+  where "strategy_funs = {f. \<forall>i. f i \<in> possible_strategies i}"
 
-definition strategy_vector :: "('player \<Rightarrow> 'strategy) \<Rightarrow> 'strategy^'player" 
-  where "strategy_vector f = (\<chi> i. f i)"
+definition fun_to_vec :: "('a \<Rightarrow> 'b) \<Rightarrow> 'b^'a" 
+  where "fun_to_vec f = (\<chi> i. f i)" 
 
 definition strategy_vectors :: "('strategy^'player) set"
-  where "strategy_vectors = {s. \<exists>f. (s = strategy_vector f \<and> f \<in> strategy_maps)}"
+  where "strategy_vectors = {s. \<forall>i. s$i \<in> possible_strategies i}"
 
 definition payoff :: "'strategy^'player \<Rightarrow> 'player \<Rightarrow> 'payoff" 
   where "payoff s i = (payoffs s)$i"
 
-lemma strategy_vector_iff:
+lemma strategy_vector_iff_fun:
   fixes s :: "'strategy^'player"
-  shows "(s \<in> strategy_vectors) = (\<forall>i. s$i \<in> possible_strategies i)"
-  by (smt (verit, del_insts) mem_Collect_eq strategy_maps_def strategy_vector_def 
-     strategy_vectors_def vec_lambda_beta vec_lambda_eta) (* TODO - Make nice *)
+  shows "(s \<in> strategy_vectors) = (\<exists>f. (s = fun_to_vec f \<and> f \<in> strategy_funs))"
+proof - 
+  have "(s \<in> strategy_vectors) = (\<forall>i. s$i \<in> possible_strategies i)" 
+    by (simp add: strategy_vectors_def) 
+  hence "(s \<in> strategy_vectors) = (\<exists>f. (s = fun_to_vec f \<and> (\<forall>i. f i \<in> possible_strategies i)))"
+    using fun_to_vec_def vec_lambda_beta vec_lambda_eta by metis 
+  thus ?thesis
+    by (simp add: strategy_funs_def) 
+qed
 
-lemma strategy_map_fix_exists: 
+text "We prove the existence of legal plays, both as functions from players to strategies, and as 
+player-indexed vectors of strategies. In particular, legal plays exist that include any particular
+choice of strategy for any player."
+
+lemma strategy_fun_fix_exists: 
   fixes s\<^sub>i :: "'strategy" 
   assumes fixed_strategy:  "s\<^sub>i \<in> possible_strategies i" 
-  shows "\<exists>f. f \<in> strategy_maps \<and> f i = s\<^sub>i"
+  shows "\<exists>f. f \<in> strategy_funs \<and> f i = s\<^sub>i"
 proof -
   let ?s' = "(\<lambda>j. (if j = i then s\<^sub>i else (SOME s. s \<in> possible_strategies j)))" 
   have "\<forall>i. ?s' i \<in> (possible_strategies i)"
     by (simp add: players_can_play some_in_eq fixed_strategy) 
-  hence "?s' \<in> strategy_maps"
-    using strategy_maps_def by simp 
+  hence "?s' \<in> strategy_funs"
+    using strategy_funs_def by simp 
   thus ?thesis 
     by auto 
 qed
 
-lemma strategy_map_exists: "\<exists>f. f \<in> strategy_maps"
-  using strategy_map_fix_exists players_have_a_move by blast 
+lemma strategy_fun_exists: "\<exists>f. f \<in> strategy_funs"
+  using strategy_fun_fix_exists players_have_a_move by blast 
 
 lemma strategy_vector_fix_exists: 
   fixes s\<^sub>i :: "'strategy" 
   assumes fixed_strategy:  "s\<^sub>i \<in> possible_strategies i" 
   shows "\<exists>s. s \<in> strategy_vectors \<and> s$i = s\<^sub>i" 
 proof - 
-  obtain f where "f \<in> strategy_maps \<and> f i = s\<^sub>i"
-    using fixed_strategy strategy_map_fix_exists by auto 
-  hence "(strategy_vector f) \<in> strategy_vectors \<and> (strategy_vector f)$i = s\<^sub>i"
-    by (simp add: strategy_vector_def strategy_vectors_def)
+  obtain f where "f \<in> strategy_funs \<and> f i = s\<^sub>i"
+    using fixed_strategy strategy_fun_fix_exists by auto 
+  hence "(fun_to_vec f) \<in> strategy_vectors \<and> (fun_to_vec f)$i = s\<^sub>i"
+    by (simp add: fun_to_vec_def strategy_vector_iff_fun)
   thus ?thesis 
     by auto 
 qed
@@ -66,34 +76,7 @@ qed
 lemma strategy_vector_exists: "\<exists>s. s \<in> strategy_vectors" 
   using strategy_vector_fix_exists players_have_a_move by blast 
 
-lemma unilateral_mode_exists: "\<exists>f. \<forall>i. \<forall>s\<^sub>i \<in> (possible_strategies i). 
-         (f i s\<^sub>i) \<in> strategy_vectors \<and> (f i s\<^sub>i)$i = s\<^sub>i \<and> 
-         (\<forall>j. ((j \<noteq> i) \<longrightarrow> (\<forall>s'\<in>(possible_strategies i). (f i s')$j = (f i s\<^sub>i)$j)))"
-proof (rule exI)
-  let ?h = "(SOME h. h \<in> strategy_maps)"
-  let ?g = "(\<lambda>i s\<^sub>i. (\<lambda>j. if j = i then s\<^sub>i else ?h j))"
-  let ?f = "(\<lambda>i s\<^sub>i. strategy_vector (?g i s\<^sub>i))"
-  have "?h \<in> strategy_maps"
-    using some_in_eq strategy_map_exists by auto
-  hence "\<forall>i. \<forall>s\<^sub>i \<in> (possible_strategies i). ?g i s\<^sub>i \<in> strategy_maps"
-    by (simp add: strategy_maps_def)
-  hence "\<forall>i. \<forall>s\<^sub>i \<in> (possible_strategies i). (?f i s\<^sub>i) \<in> strategy_vectors"
-    using strategy_vectors_def by auto 
-  moreover have "\<forall>i. \<forall>s\<^sub>i \<in> (possible_strategies i). (?f i s\<^sub>i)$i = s\<^sub>i"
-    by (simp add: strategy_vector_def)
-  moreover have "\<forall>i. \<forall>s\<^sub>i \<in> (possible_strategies i). 
-               ((\<forall>j. ((j \<noteq> i) \<longrightarrow> 
-                (\<forall>s'\<in>(possible_strategies i). (?f i s')$j = (?f i s\<^sub>i)$j))))"
-    using strategy_vector_def by auto 
-  ultimately show "\<forall>i. \<forall>s\<^sub>i \<in> (possible_strategies i). 
-         (?f i s\<^sub>i) \<in> strategy_vectors \<and> (?f i s\<^sub>i)$i = s\<^sub>i \<and> 
-         (\<forall>j. ((j \<noteq> i) \<longrightarrow> (\<forall>s'\<in>(possible_strategies i). (?f i s')$j = (?f i s\<^sub>i)$j)))"
-    by blast
-qed
-
 (* s_-i = function that maps each of i's actions to the according play *)
-
-
 definition play_completion :: "'strategy \<Rightarrow> 'strategy^'player \<Rightarrow> 'player \<Rightarrow> 'strategy^'player"
   where "play_completion s\<^sub>i s i = (\<chi> j. if j = i then s\<^sub>i else s$j)"
 
@@ -116,13 +99,19 @@ lemma completion_legal_iff:
         (\<forall>j. ((j \<noteq> i) \<longrightarrow> s$j \<in> possible_strategies j)))"
 proof - 
   have "((s\<^sub>i,s\<^sub>-\<^sub>i) \<in> strategy_vectors) = (\<forall>j. (s\<^sub>i,s\<^sub>-\<^sub>i)$j \<in> possible_strategies j)"
-    by (simp add: strategy_vector_iff)
+    by (simp add: strategy_vectors_def)
   hence "((s\<^sub>i,s\<^sub>-\<^sub>i) \<in> strategy_vectors) = (((s\<^sub>i,s\<^sub>-\<^sub>i)$i \<in> possible_strategies i) \<and>
          (\<forall>j. ((j \<noteq> i) \<longrightarrow> (s\<^sub>i,s\<^sub>-\<^sub>i)$j \<in> possible_strategies j)))"
     by auto
   thus ?thesis
     by (simp add: player_chooses_completion completion_fixes_other_players)
 qed
+
+lemma completion_of_legal_play: 
+    fixes s :: "'strategy^'player"
+  assumes legal_play: "s \<in> strategy_vectors"
+    shows "(s\<^sub>i,s\<^sub>-\<^sub>i) \<in> strategy_vectors = (s\<^sub>i \<in> possible_strategies i)"
+  using completion_legal_iff legal_play strategy_vectors_def by auto
 
 end
 
