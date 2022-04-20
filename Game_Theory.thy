@@ -14,8 +14,8 @@ corollary players_have_a_move: "\<exists>s. s\<in>pure_strategies i"
   using players_can_play by auto 
 
 text "Strategy selection" 
-definition pure_profiles :: "('strategy^'player) set"
-  where "pure_profiles = {s. \<forall>i. s$i \<in> pure_strategies i}"
+definition pure_profile :: "('strategy^'player) \<Rightarrow> bool"
+  where "pure_profile s = (\<forall>i. s$i \<in> pure_strategies i)"
 
 definition payoff :: "'strategy^'player \<Rightarrow> 'player \<Rightarrow> 'payoff" 
   where "payoff s i = (payoffs s)$i"
@@ -27,13 +27,13 @@ lemma pure_profile_fix_exists:
   fixes s\<^sub>i :: "'strategy" 
     and i :: 'player
   assumes fixed_strategy:  "s\<^sub>i \<in> pure_strategies i" 
-  shows "\<exists>s. s \<in> pure_profiles \<and> s$i = s\<^sub>i" 
+  shows "\<exists>s. pure_profile s \<and> s$i = s\<^sub>i" 
 proof -
   let ?s = "(\<chi> j. if j = i then s\<^sub>i else (SOME s\<^sub>j. s\<^sub>j \<in> pure_strategies j))"
   have "\<forall>j. ?s$j \<in> pure_strategies j"
     by (simp add: fixed_strategy players_can_play some_in_eq)
-  hence "?s \<in> pure_profiles"
-    by (simp add: pure_profiles_def)
+  hence "pure_profile ?s"
+    by (simp add: pure_profile_def)
 
   moreover have "?s$i = s\<^sub>i"
     by simp 
@@ -42,7 +42,7 @@ proof -
     by auto
 qed
 
-lemma pure_profile_exists: "\<exists>s. s \<in> pure_profiles" 
+lemma pure_profile_exists: "\<exists>s. pure_profile s" 
   using pure_profile_fix_exists players_have_a_move by blast 
 
 text "If n denotes the number of players, we represent the (n-1)-dimensional vector of strategies
@@ -67,12 +67,12 @@ lemma pure_completion_fixes_other_players:
 lemma pure_completion_legal_iff: 
   fixes i :: 'player 
     and s :: "'strategy^'player"
-  shows "((s\<^sub>i,s\<^sub>-\<^sub>i) \<in> pure_profiles) = ((s\<^sub>i \<in> pure_strategies i) \<and> 
+  shows "(pure_profile (s\<^sub>i,s\<^sub>-\<^sub>i)) = ((s\<^sub>i \<in> pure_strategies i) \<and> 
         (\<forall>j. ((j \<noteq> i) \<longrightarrow> s$j \<in> pure_strategies j)))"
 proof - 
-  have "((s\<^sub>i,s\<^sub>-\<^sub>i) \<in> pure_profiles) = (\<forall>j. (s\<^sub>i,s\<^sub>-\<^sub>i)$j \<in> pure_strategies j)"
-    by (simp add: pure_profiles_def)
-  hence "((s\<^sub>i,s\<^sub>-\<^sub>i) \<in> pure_profiles) = (((s\<^sub>i,s\<^sub>-\<^sub>i)$i \<in> pure_strategies i) \<and>
+  have "(pure_profile (s\<^sub>i,s\<^sub>-\<^sub>i)) = (\<forall>j. (s\<^sub>i,s\<^sub>-\<^sub>i)$j \<in> pure_strategies j)"
+    by (simp add: pure_profile_def)
+  hence "(pure_profile (s\<^sub>i,s\<^sub>-\<^sub>i)) = (((s\<^sub>i,s\<^sub>-\<^sub>i)$i \<in> pure_strategies i) \<and>
          (\<forall>j. ((j \<noteq> i) \<longrightarrow> (s\<^sub>i,s\<^sub>-\<^sub>i)$j \<in> pure_strategies j)))"
     by auto
   thus ?thesis
@@ -81,9 +81,9 @@ qed
 
 lemma pure_completion_of_legal_play: 
     fixes s :: "'strategy^'player"
-  assumes legal_play: "s \<in> pure_profiles"
-    shows "(s\<^sub>i,s\<^sub>-\<^sub>i) \<in> pure_profiles = (s\<^sub>i \<in> pure_strategies i)"
-  using pure_completion_legal_iff legal_play pure_profiles_def by auto
+  assumes legal_play: "pure_profile s"
+    shows "pure_profile (s\<^sub>i,s\<^sub>-\<^sub>i) = (s\<^sub>i \<in> pure_strategies i)"
+  using pure_completion_legal_iff legal_play pure_profile_def by auto
 
 lemma reconstruct_pure_profile [simp]: 
   fixes s :: "'strategy^'player"
@@ -100,22 +100,22 @@ subsection "Basic solution concepts"
 
 (* Note that ((s')$i,s'\<^sub>-\<^sub>i) is just s', which simp knows due to reconstruct_pure_profile. *)
 definition dominant_strategy_solution :: "'strategy^'player \<Rightarrow> bool"
-  where "dominant_strategy_solution s = ((s \<in> pure_profiles) \<and> 
-        (\<forall>i. \<forall>s'\<in>pure_profiles. payoff (s$i,s'\<^sub>-\<^sub>i) i \<ge> payoff ((s')$i,s'\<^sub>-\<^sub>i) i))"
+  where "dominant_strategy_solution s = ((pure_profile s) \<and> 
+        (\<forall>i. \<forall>s'. (pure_profile s' \<longrightarrow> payoff (s$i,s'\<^sub>-\<^sub>i) i \<ge> payoff ((s')$i,s'\<^sub>-\<^sub>i) i)))"
 
 definition pure_nash_equilibrium :: "'strategy^'player \<Rightarrow> bool"
-  where "pure_nash_equilibrium s = ((s \<in> pure_profiles) \<and> 
-        (\<forall>i. \<forall>s'\<in>pure_profiles. payoff (s$i,s\<^sub>-\<^sub>i) i \<ge> payoff ((s')$i,s\<^sub>-\<^sub>i) i))"
+  where "pure_nash_equilibrium s = ((pure_profile s) \<and> 
+        (\<forall>i. \<forall>s'. (pure_profile s' \<longrightarrow> payoff (s$i,s\<^sub>-\<^sub>i) i \<ge> payoff ((s')$i,s\<^sub>-\<^sub>i) i)))"
 
-lemma pure_nash_no_unilateral_improv: "pure_nash_equilibrium s = ((s \<in> pure_profiles) \<and> 
+lemma pure_nash_no_unilateral_improv: "pure_nash_equilibrium s = ((pure_profile s) \<and> 
         (\<forall>i. \<forall>s'\<^sub>i \<in> pure_strategies i. payoff (s$i,s\<^sub>-\<^sub>i) i \<ge> payoff (s'\<^sub>i,s\<^sub>-\<^sub>i) i))"
 proof (rule iffI)
   assume "pure_nash_equilibrium s"
-  thus "((s \<in> pure_profiles) \<and> 
+  thus "((pure_profile s) \<and> 
         (\<forall>i. \<forall>s'\<^sub>i \<in> pure_strategies i. payoff (s$i,s\<^sub>-\<^sub>i) i \<ge> payoff (s'\<^sub>i,s\<^sub>-\<^sub>i) i))"
     using pure_nash_equilibrium_def pure_profile_fix_exists by blast 
 next 
-  assume "((s \<in> pure_profiles) \<and> 
+  assume "((pure_profile s) \<and> 
         (\<forall>i. \<forall>s'\<^sub>i \<in> pure_strategies i. payoff (s$i,s\<^sub>-\<^sub>i) i \<ge> payoff (s'\<^sub>i,s\<^sub>-\<^sub>i) i))"
   thus "pure_nash_equilibrium s"
     by (metis pure_completion_legal_iff pure_nash_equilibrium_def reconstruct_pure_profile) 
