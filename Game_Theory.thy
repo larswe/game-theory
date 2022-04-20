@@ -101,7 +101,7 @@ subsection "Basic solution concepts"
 (* Note that ((s')$i,s'\<^sub>-\<^sub>i) is just s', which simp knows due to reconstruct_pure_profile. *)
 definition dominant_strategy_solution :: "'strategy^'player \<Rightarrow> bool"
   where "dominant_strategy_solution s = ((pure_profile s) \<and> 
-        (\<forall>i. \<forall>s'. (pure_profile s' \<longrightarrow> payoff (s$i,s'\<^sub>-\<^sub>i) i \<ge> payoff ((s')$i,s'\<^sub>-\<^sub>i) i)))"
+        (\<forall>i. \<forall>s'. (pure_profile s' \<longrightarrow> payoff (s$i,s'\<^sub>-\<^sub>i) i \<ge> payoff (s'$i,s'\<^sub>-\<^sub>i) i)))"
 
 definition pure_nash_equilibrium :: "'strategy^'player \<Rightarrow> bool"
   where "pure_nash_equilibrium s = ((pure_profile s) \<and> 
@@ -111,15 +111,48 @@ lemma pure_nash_no_unilateral_improv: "pure_nash_equilibrium s = ((pure_profile 
         (\<forall>i. \<forall>s'\<^sub>i \<in> pure_strategies i. payoff (s$i,s\<^sub>-\<^sub>i) i \<ge> payoff (s'\<^sub>i,s\<^sub>-\<^sub>i) i))"
 proof (rule iffI)
   assume "pure_nash_equilibrium s"
-  thus "((pure_profile s) \<and> 
-        (\<forall>i. \<forall>s'\<^sub>i \<in> pure_strategies i. payoff (s$i,s\<^sub>-\<^sub>i) i \<ge> payoff (s'\<^sub>i,s\<^sub>-\<^sub>i) i))"
+  thus "pure_profile s \<and> 
+        (\<forall>i. \<forall>s'\<^sub>i \<in> pure_strategies i. payoff (s$i,s\<^sub>-\<^sub>i) i \<ge> payoff (s'\<^sub>i,s\<^sub>-\<^sub>i) i)"
     using pure_nash_equilibrium_def pure_profile_fix_exists by blast 
 next 
-  assume "((pure_profile s) \<and> 
-        (\<forall>i. \<forall>s'\<^sub>i \<in> pure_strategies i. payoff (s$i,s\<^sub>-\<^sub>i) i \<ge> payoff (s'\<^sub>i,s\<^sub>-\<^sub>i) i))"
+  assume "pure_profile s \<and> 
+        (\<forall>i. \<forall>s'\<^sub>i \<in> pure_strategies i. payoff (s$i,s\<^sub>-\<^sub>i) i \<ge> payoff (s'\<^sub>i,s\<^sub>-\<^sub>i) i)"
   thus "pure_nash_equilibrium s"
     by (metis pure_completion_legal_iff pure_nash_equilibrium_def reconstruct_pure_profile) 
 qed 
+
+lemma completion_reverses_itself: "(a,(b,s\<^sub>-\<^sub>i)\<^sub>-\<^sub>i) = (a,s\<^sub>-\<^sub>i)"
+proof - 
+  have "\<forall>j. (a,(b,s\<^sub>-\<^sub>i)\<^sub>-\<^sub>i)$j = (a,s\<^sub>-\<^sub>i)$j"
+    by (metis player_chooses_completion pure_completion_fixes_other_players)
+  thus ?thesis
+    by (simp add: vec_eq_iff) 
+qed
+
+text "Dominant pure strategy solutions are pure Nash equilibria."
+lemma dominant_imp_pure_nash:
+  fixes s
+  assumes dom: "dominant_strategy_solution s"
+  shows "pure_nash_equilibrium s"
+proof - 
+  have "((pure_profile s) \<and> 
+        (\<forall>i. \<forall>s'. (pure_profile s' \<longrightarrow> payoff (s$i,s'\<^sub>-\<^sub>i) i \<ge> payoff s' i)))"
+    using dom dominant_strategy_solution_def by auto
+  hence "((pure_profile s) \<and> 
+        (\<forall>i. \<forall>s'\<^sub>i \<in> pure_strategies i. (pure_profile (s'\<^sub>i,s\<^sub>-\<^sub>i) \<longrightarrow> 
+        payoff (s$i,(s'\<^sub>i,s\<^sub>-\<^sub>i)\<^sub>-\<^sub>i) i \<ge> payoff (s'\<^sub>i,s\<^sub>-\<^sub>i) i)))"
+    by simp
+  hence "((pure_profile s) \<and> 
+        (\<forall>i. \<forall>s'\<^sub>i \<in> pure_strategies i. (pure_profile (s'\<^sub>i,s\<^sub>-\<^sub>i) \<longrightarrow> 
+        payoff s i \<ge> payoff (s'\<^sub>i,s\<^sub>-\<^sub>i) i)))"
+    by (simp add: completion_reverses_itself)
+  hence "((pure_profile s) \<and> 
+        (\<forall>i. \<forall>s'\<^sub>i \<in> pure_strategies i. (pure_profile s \<longrightarrow> 
+        payoff s i \<ge> payoff (s'\<^sub>i,s\<^sub>-\<^sub>i) i)))"
+    using pure_completion_of_legal_play by simp 
+  thus ?thesis
+    using pure_nash_no_unilateral_improv by auto 
+qed
 
 end
 
