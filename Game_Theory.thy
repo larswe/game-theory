@@ -85,16 +85,41 @@ lemma pure_completion_of_legal_play:
     shows "(s\<^sub>i,s\<^sub>-\<^sub>i) \<in> pure_profiles = (s\<^sub>i \<in> pure_strategies i)"
   using pure_completion_legal_iff legal_play pure_profiles_def by auto
 
-lemma reconstruct_pure_profile: 
+lemma reconstruct_pure_profile [simp]: 
   fixes s :: "'strategy^'player"
     and i :: 'player 
-  shows "(s$i,s\<^sub>-\<^sub>i) = s"
+  shows "(s$i,s\<^sub>-\<^sub>i) = s" 
 proof - 
   have "\<forall>j. (s$i,s\<^sub>-\<^sub>i)$j = s$j"
     using pure_completion_fixes_other_players player_chooses_completion by metis 
   thus ?thesis
     by (simp add: vec_eq_iff) 
 qed
+
+subsection "Basic solution concepts"
+
+(* Note that ((s')$i,s'\<^sub>-\<^sub>i) is just s', which simp knows due to reconstruct_pure_profile. *)
+definition dominant_strategy_solution :: "'strategy^'player \<Rightarrow> bool"
+  where "dominant_strategy_solution s = ((s \<in> pure_profiles) \<and> 
+        (\<forall>i. \<forall>s'\<in>pure_profiles. payoff (s$i,s'\<^sub>-\<^sub>i) i \<ge> payoff ((s')$i,s'\<^sub>-\<^sub>i) i))"
+
+definition pure_nash_equilibrium :: "'strategy^'player \<Rightarrow> bool"
+  where "pure_nash_equilibrium s = ((s \<in> pure_profiles) \<and> 
+        (\<forall>i. \<forall>s'\<in>pure_profiles. payoff (s$i,s\<^sub>-\<^sub>i) i \<ge> payoff ((s')$i,s\<^sub>-\<^sub>i) i))"
+
+lemma pure_nash_no_unilateral_improv: "pure_nash_equilibrium s = ((s \<in> pure_profiles) \<and> 
+        (\<forall>i. \<forall>s'\<^sub>i \<in> pure_strategies i. payoff (s$i,s\<^sub>-\<^sub>i) i \<ge> payoff (s'\<^sub>i,s\<^sub>-\<^sub>i) i))"
+proof (rule iffI)
+  assume "pure_nash_equilibrium s"
+  thus "((s \<in> pure_profiles) \<and> 
+        (\<forall>i. \<forall>s'\<^sub>i \<in> pure_strategies i. payoff (s$i,s\<^sub>-\<^sub>i) i \<ge> payoff (s'\<^sub>i,s\<^sub>-\<^sub>i) i))"
+    using pure_nash_equilibrium_def pure_profile_fix_exists by blast 
+next 
+  assume "((s \<in> pure_profiles) \<and> 
+        (\<forall>i. \<forall>s'\<^sub>i \<in> pure_strategies i. payoff (s$i,s\<^sub>-\<^sub>i) i \<ge> payoff (s'\<^sub>i,s\<^sub>-\<^sub>i) i))"
+  thus "pure_nash_equilibrium s"
+    by (metis pure_completion_legal_iff pure_nash_equilibrium_def reconstruct_pure_profile) 
+qed 
 
 end
 
