@@ -13,6 +13,7 @@ begin
 corollary players_have_a_move: "\<exists>s. s\<in>pure_strategies i"
   using players_can_play by auto 
 
+
 text "Strategy selection" 
 definition pure_profile :: "('strategy^'player) \<Rightarrow> bool"
   where "pure_profile s = (\<forall>i. s$i \<in> pure_strategies i)"
@@ -144,8 +145,8 @@ end
 
 text "Strategic form games with real-valued payoffs."
 locale real_out_strategic_game = strategic_game pure_strategies payoffs
-  for payoffs :: "('strategy, 'player) vec \<Rightarrow> (real, 'player :: finite) vec"
-  and pure_strategies
+  for pure_strategies 
+  and payoffs :: "('strategy, 'player) vec \<Rightarrow> (real, 'player :: finite) vec"
 begin
 
 text "For real-valued payoffs, costs can be defined to be their additive inverse."
@@ -160,5 +161,32 @@ lemma cost_neg_pay:
   by (simp add: cost_def costs_def payoff_def)
 
 end
+
+section "Example Games"
+
+subsection "2-player games"
+datatype two_player = P1 | P2
+
+instance two_player :: finite
+proof 
+  have "(UNIV :: two_player set) = {P1, P2}"
+    by (metis UNIV_eq_I insertCI two_player.exhaust)
+  thus "finite (UNIV :: two_player set)"
+    using finite.simps by auto
+qed
+
+text "The Prisoner's Dilemma"
+datatype prisoner_strat = Confess | Silent
+
+interpretation real_out_strategic_game 
+  "(\<lambda>(i::two_player). {Confess, Silent})"
+  "(\<lambda>s. (\<chi> i. if s$i = Confess then 
+          (if s = (\<chi> j. Confess) then 4 else 1) 
+        else 
+          (if s = (\<chi> j. Silent) then 2 else 5) ))" 
+proof 
+  show "{Confess, Silent} \<noteq> {}"
+    by simp 
+qed 
 
 end
