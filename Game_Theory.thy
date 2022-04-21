@@ -1,5 +1,5 @@
 theory Game_Theory 
-  imports "HOL-Analysis.Analysis"
+  imports "HOL-Probability.Probability_Mass_Function"
 begin
 
 section "Defining a Simultaneous Move Game"
@@ -105,21 +105,7 @@ definition dominant_strategy_solution :: "'strategy^'player \<Rightarrow> bool"
 
 definition pure_nash_equilibrium :: "'strategy^'player \<Rightarrow> bool"
   where "pure_nash_equilibrium s = ((pure_profile s) \<and> 
-        (\<forall>i. \<forall>s'. (pure_profile s' \<longrightarrow> payoff (s$i,s\<^sub>-\<^sub>i) i \<ge> payoff ((s')$i,s\<^sub>-\<^sub>i) i)))"
-
-lemma pure_nash_no_unilateral_improv: "pure_nash_equilibrium s = ((pure_profile s) \<and> 
         (\<forall>i. \<forall>s'\<^sub>i \<in> pure_strategies i. payoff (s$i,s\<^sub>-\<^sub>i) i \<ge> payoff (s'\<^sub>i,s\<^sub>-\<^sub>i) i))"
-proof (rule iffI)
-  assume "pure_nash_equilibrium s"
-  thus "pure_profile s \<and> 
-        (\<forall>i. \<forall>s'\<^sub>i \<in> pure_strategies i. payoff (s$i,s\<^sub>-\<^sub>i) i \<ge> payoff (s'\<^sub>i,s\<^sub>-\<^sub>i) i)"
-    using pure_nash_equilibrium_def pure_profile_fix_exists by blast 
-next 
-  assume "pure_profile s \<and> 
-        (\<forall>i. \<forall>s'\<^sub>i \<in> pure_strategies i. payoff (s$i,s\<^sub>-\<^sub>i) i \<ge> payoff (s'\<^sub>i,s\<^sub>-\<^sub>i) i)"
-  thus "pure_nash_equilibrium s"
-    by (metis pure_completion_legal_iff pure_nash_equilibrium_def reconstruct_pure_profile) 
-qed 
 
 lemma completion_reverses_itself: "(a,(b,s\<^sub>-\<^sub>i)\<^sub>-\<^sub>i) = (a,s\<^sub>-\<^sub>i)"
 proof - 
@@ -135,23 +121,23 @@ lemma dominant_imp_pure_nash:
   assumes dom: "dominant_strategy_solution s"
   shows "pure_nash_equilibrium s"
 proof - 
-  have "((pure_profile s) \<and> 
-        (\<forall>i. \<forall>s'. (pure_profile s' \<longrightarrow> payoff (s$i,s'\<^sub>-\<^sub>i) i \<ge> payoff s' i)))"
+  have "pure_profile s"
     using dom dominant_strategy_solution_def by auto
-  hence "((pure_profile s) \<and> 
-        (\<forall>i. \<forall>s'\<^sub>i \<in> pure_strategies i. (pure_profile (s'\<^sub>i,s\<^sub>-\<^sub>i) \<longrightarrow> 
-        payoff (s$i,(s'\<^sub>i,s\<^sub>-\<^sub>i)\<^sub>-\<^sub>i) i \<ge> payoff (s'\<^sub>i,s\<^sub>-\<^sub>i) i)))"
+  
+  moreover have "\<forall>i. \<forall>s'. (pure_profile s' \<longrightarrow> payoff (s$i,s'\<^sub>-\<^sub>i) i \<ge> payoff s' i)"
+    using dom dominant_strategy_solution_def by auto
+  hence "\<forall>i. \<forall>s'\<^sub>i \<in> pure_strategies i. (pure_profile (s'\<^sub>i,s\<^sub>-\<^sub>i) \<longrightarrow> 
+        payoff (s$i,(s'\<^sub>i,s\<^sub>-\<^sub>i)\<^sub>-\<^sub>i) i \<ge> payoff (s'\<^sub>i,s\<^sub>-\<^sub>i) i)"
     by simp
-  hence "((pure_profile s) \<and> 
-        (\<forall>i. \<forall>s'\<^sub>i \<in> pure_strategies i. (pure_profile (s'\<^sub>i,s\<^sub>-\<^sub>i) \<longrightarrow> 
-        payoff s i \<ge> payoff (s'\<^sub>i,s\<^sub>-\<^sub>i) i)))"
+  hence "\<forall>i. \<forall>s'\<^sub>i \<in> pure_strategies i. (pure_profile (s'\<^sub>i,s\<^sub>-\<^sub>i) \<longrightarrow> 
+        payoff s i \<ge> payoff (s'\<^sub>i,s\<^sub>-\<^sub>i) i)"
     by (simp add: completion_reverses_itself)
-  hence "((pure_profile s) \<and> 
-        (\<forall>i. \<forall>s'\<^sub>i \<in> pure_strategies i. (pure_profile s \<longrightarrow> 
-        payoff s i \<ge> payoff (s'\<^sub>i,s\<^sub>-\<^sub>i) i)))"
+  hence "\<forall>i. \<forall>s'\<^sub>i \<in> pure_strategies i. (pure_profile s \<longrightarrow> 
+        payoff s i \<ge> payoff (s'\<^sub>i,s\<^sub>-\<^sub>i) i)"
     using pure_completion_of_legal_play by simp 
-  thus ?thesis
-    using pure_nash_no_unilateral_improv by auto 
+
+  ultimately show ?thesis
+    using pure_nash_equilibrium_def by auto 
 qed
 
 end
@@ -164,13 +150,13 @@ begin
 
 text "For real-valued payoffs, costs can be defined to be their additive inverse."
 definition costs :: "('strategy, 'player) vec \<Rightarrow> (real, 'player) vec"
-  where "costs s = -(payoffs s)"
+  where "costs s = -payoffs s"
 
 definition cost :: "('strategy, 'player) vec \<Rightarrow> 'player \<Rightarrow> real"
   where "cost s i = (costs s)$i"
 
 lemma cost_neg_pay: 
-  shows "cost s i = -(payoff s i)"
+  shows "cost s i = -payoff s i"
   by (simp add: cost_def costs_def payoff_def)
 
 end
